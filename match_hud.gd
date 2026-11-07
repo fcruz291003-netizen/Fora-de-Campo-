@@ -41,8 +41,8 @@ func _draw() -> void:
 
 	# força do chute (perto do botão CHUTE)
 	if charge > 0.0:
-		var cx: float = s.x - 170.0
-		var cy: float = s.y - 228.0
+		var cx: float = s.x - 180.0
+		var cy: float = s.y - 262.0
 		draw_rect(Rect2(cx, cy, 100.0, 12.0), Color(0, 0, 0, 0.55))
 		draw_rect(Rect2(cx, cy, 100.0 * charge, 12.0), Color(1.0, 0.85, 0.2).lerp(Color(1.0, 0.25, 0.1), charge))
 
