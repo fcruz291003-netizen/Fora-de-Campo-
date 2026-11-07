@@ -1,11 +1,15 @@
 class_name TouchControls
 extends Control
-## Joystick flutuante (metade esquerda da tela) + botões de ação (direita).
+## Joystick flutuante (metade esquerda da tela) + botões de ação (direita) que MUDAM conforme o momento:
+##   "attack"  (você está com a bola)      -> CHUTE, PASSE, CRUZ., CORRER
+##   "support" (um companheiro tem a bola) -> PEDIR, CORRER
+##   "defend"  (o rival tem a bola)        -> PRESSIONAR, CARRINHO, DESARME, CORRER
+##   "loose"   (bola solta)                -> PEGAR, CARRINHO, CORRER
 ## Também aceita teclado para testar no PC:
-##   WASD/setas = mover | Espaço ou J = chute (segure) | K = passe/desarme | L = cruzamento
-##   Shift = correr | E = pedir a bola | Q = carrinho
+##   WASD/setas = mover | Espaço ou J = chute (segure) | K = passe | L = cruzamento
+##   Shift = correr | E = pedir a bola | R = pressionar | Q = carrinho | F = desarme
 
-const STICK_RADIUS := 90.0
+const STICK_RADIUS := 105.0
 
 const KEY_MAP := {
 	KEY_SPACE: "shoot",
@@ -14,8 +18,12 @@ const KEY_MAP := {
 	KEY_L: "cross",
 	KEY_SHIFT: "sprint",
 	KEY_E: "call",
+	KEY_R: "press",
 	KEY_Q: "slide",
+	KEY_F: "tackle",
 }
+
+var context: String = "loose"      # definido pela partida a cada frame
 
 var held: Dictionary = {}          # nome -> true enquanto o botão está pressionado
 var pressed: Dictionary = {}       # nome -> true no frame em que foi pressionado (consumir com take_pressed)
@@ -69,17 +77,37 @@ func take_tap() -> bool:
 	return t
 
 
-# ---------------------------------------------------------------- layout
+# ---------------------------------------------------------------- layout (botões grandes, por contexto)
+# cada botão: [centro, raio, texto, cor]
 func _layout() -> Dictionary:
 	var s: Vector2 = get_viewport_rect().size
-	return {
-		"shoot": [Vector2(s.x - 120.0, s.y - 140.0), 58.0, "CHUTE"],
-		"pass": [Vector2(s.x - 260.0, s.y - 100.0), 46.0, "PASSE"],
-		"cross": [Vector2(s.x - 250.0, s.y - 230.0), 40.0, "CRUZ."],
-		"sprint": [Vector2(s.x - 120.0, s.y - 290.0), 38.0, "CORRER"],
-		"call": [Vector2(s.x - 375.0, s.y - 90.0), 36.0, "PEDIR"],
-		"slide": [Vector2(s.x - 365.0, s.y - 200.0), 36.0, "CARR."],
-	}
+	var p1 := Vector2(s.x - 130.0, s.y - 150.0)    # ação principal (maior)
+	var p2 := Vector2(s.x - 315.0, s.y - 110.0)
+	var p3 := Vector2(s.x - 290.0, s.y - 270.0)
+	var psp := Vector2(s.x - 120.0, s.y - 335.0)   # CORRER fica sempre no mesmo lugar
+	var atk := Color(0.25, 0.75, 0.35)
+	var dfn := Color(0.85, 0.30, 0.25)
+	var run := Color(0.95, 0.80, 0.20)
+	var shoot_col := Color(0.95, 0.45, 0.15)
+	var out: Dictionary = {}
+	if context == "attack":
+		out["shoot"] = [p1, 84.0, "CHUTE", shoot_col]
+		out["pass"] = [p2, 66.0, "PASSE", atk]
+		out["cross"] = [p3, 56.0, "CRUZ.", atk]
+		out["sprint"] = [psp, 58.0, "CORRER", run]
+	elif context == "support":
+		out["call"] = [p1, 88.0, "PEDIR", atk]
+		out["sprint"] = [psp, 58.0, "CORRER", run]
+	elif context == "defend":
+		out["press"] = [p1, 84.0, "PRESSIONAR", dfn]
+		out["slide"] = [p2, 66.0, "CARRINHO", dfn]
+		out["tackle"] = [p3, 56.0, "DESARME", dfn]
+		out["sprint"] = [psp, 58.0, "CORRER", run]
+	else:
+		out["press"] = [p1, 84.0, "PEGAR", dfn]
+		out["slide"] = [p2, 66.0, "CARRINHO", dfn]
+		out["sprint"] = [psp, 58.0, "CORRER", run]
+	return out
 
 
 # ---------------------------------------------------------------- entrada
@@ -115,7 +143,7 @@ func _touch_down(idx: int, pos: Vector2) -> void:
 		var info: Array = lay[nm]
 		var center: Vector2 = info[0]
 		var r: float = info[1]
-		if pos.distance_to(center) <= r * 1.2:
+		if pos.distance_to(center) <= r * 1.15:
 			finger_btn[idx] = nm
 			held[nm] = true
 			pressed[nm] = true
@@ -157,16 +185,17 @@ func _draw() -> void:
 		var center: Vector2 = info[0]
 		var r: float = info[1]
 		var label: String = info[2]
+		var col: Color = info[3]
 		var on: bool = held.has(nm)
-		var fill := Color(1, 1, 1, 0.38 if on else 0.16)
-		draw_circle(center, r, fill)
-		draw_arc(center, r, 0.0, TAU, 40, Color(1, 1, 1, 0.75), 3.0)
-		draw_string(font, center + Vector2(-r, 6.0), label,
-			HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 15, Color(1, 1, 1, 0.95))
+		draw_circle(center, r, Color(col.r, col.g, col.b, 0.55 if on else 0.28))
+		draw_arc(center, r, 0.0, TAU, 48, Color(col.r, col.g, col.b, 0.95), 4.0)
+		var fs: int = int(r * 0.30)
+		draw_string(font, center + Vector2(-r, float(fs) * 0.35), label,
+			HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, fs, Color(1, 1, 1, 0.97))
 	# joystick
 	var s: Vector2 = get_viewport_rect().size
-	var base: Vector2 = stick_origin if stick_id != -1 else Vector2(170.0, s.y - 150.0)
+	var base: Vector2 = stick_origin if stick_id != -1 else Vector2(190.0, s.y - 160.0)
 	var alpha: float = 0.35 if stick_id != -1 else 0.14
 	draw_circle(base, STICK_RADIUS, Color(1, 1, 1, alpha * 0.5))
 	draw_arc(base, STICK_RADIUS, 0.0, TAU, 48, Color(1, 1, 1, alpha + 0.2), 3.0)
-	draw_circle(base + stick_vec * STICK_RADIUS, 34.0, Color(1, 1, 1, alpha + 0.2))
+	draw_circle(base + stick_vec * STICK_RADIUS, 40.0, Color(1, 1, 1, alpha + 0.2))
