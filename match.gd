@@ -27,6 +27,7 @@ var cam: Camera2D
 var hud: MatchHud
 var controls: TouchControls
 var user: Footballer
+var referee: Footballer
 
 var players: Array[Footballer] = []
 var team0: Array[Footballer] = []
@@ -65,6 +66,7 @@ func _ready() -> void:
 
 	_spawn_team(0)
 	_spawn_team(1)
+	_spawn_referee()
 
 	ball = SoccerBall.new()
 	ball.z_index = 5
@@ -72,10 +74,10 @@ func _ready() -> void:
 
 	cam = Camera2D.new()
 	cam.zoom = Vector2(0.85, 0.85)
-	cam.limit_left = -1500
-	cam.limit_right = 1500
-	cam.limit_top = -1000
-	cam.limit_bottom = 1000
+	cam.limit_left = -1650
+	cam.limit_right = 1650
+	cam.limit_top = -1150
+	cam.limit_bottom = 1150
 	add_child(cam)
 	cam.make_current()
 
@@ -104,6 +106,9 @@ func _spawn_team(t: int) -> void:
 			p.kit_color = Color(0.95, 0.75, 0.1) if p.is_gk else Color(0.15, 0.45, 1.0)
 		else:
 			p.kit_color = Color(0.2, 0.8, 0.3) if p.is_gk else Color(0.9, 0.2, 0.2)
+		p.kit_trim = Color(0.1, 0.1, 0.1) if p.is_gk else Color(1, 1, 1)
+		p.skin = PitchView.SKINS[rng.randi() % PitchView.SKINS.size()]
+		p.hair = PitchView.HAIRS[rng.randi() % PitchView.HAIRS.size()]
 		var is_user: bool = (t == 0 and i == 9)
 		p.is_user = is_user
 		p.attrs = _make_attrs(p.role, is_user)
@@ -114,6 +119,26 @@ func _spawn_team(t: int) -> void:
 		add_child(p)
 		players.append(p)
 		_team(t).append(p)
+
+
+func _spawn_referee() -> void:
+	referee = Footballer.new()
+	referee.team = 2
+	referee.number = 0
+	referee.show_number = false
+	referee.kit_color = Color(0.08, 0.08, 0.10)
+	referee.kit_trim = Color(0.95, 0.85, 0.10)
+	referee.skin = PitchView.SKINS[1]
+	referee.hair = PitchView.HAIRS[0]
+	referee.position = Vector2(0.0, 160.0)
+	add_child(referee)
+
+
+func _update_referee(delta: float) -> void:
+	var target: Vector2 = ball.position + Vector2(-90.0, 140.0)
+	target.x = clampf(target.x, -W + 100.0, W - 100.0)
+	target.y = clampf(target.y, -H + 60.0, H - 60.0)
+	_move_ai(referee, target, 0.8, delta)
 
 
 func _a(pace: int, sho: int, pas: int, dri: int, def: int, phy: int) -> Dictionary:
@@ -148,7 +173,10 @@ func _dir(t: int) -> float:
 # ================================================================ loop
 func _process(delta: float) -> void:
 	for p: Footballer in players:
+		p.anim_t += delta * p.velocity.length() * 0.055
 		p.queue_redraw()
+	referee.anim_t += delta * referee.velocity.length() * 0.055
+	referee.queue_redraw()
 	ball.queue_redraw()
 	if msg_t > 0.0:
 		msg_t -= delta
@@ -205,6 +233,7 @@ func _play(delta: float) -> void:
 		if p != user:
 			_update_ai(p, delta)
 
+	_update_referee(delta)
 	_separate_players()
 	_clamp_players()
 
