@@ -41,8 +41,19 @@ func physics_step(delta: float) -> void:
 
 
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 7.0, Color(0, 0, 0, 0.3))
+	draw_circle(Vector2(2.0, 3.0), 7.0, Color(0, 0, 0, 0.3))
 	var off := Vector2(0.0, -z * 0.6)
 	var r: float = 8.0 + z * 0.012
+	var rot: float = (position.x + position.y) * 0.05
 	draw_circle(off, r, Color(1, 1, 1))
-	draw_arc(off, r, 0.0, TAU, 16, Color(0.1, 0.1, 0.1), 2.0)
+	# gomos escuros que giram junto com a bola
+	draw_set_transform(off, rot, Vector2.ONE)
+	var pent := PackedVector2Array()
+	for i in range(5):
+		pent.append(Vector2.from_angle(TAU * float(i) / 5.0 - PI * 0.5) * r * 0.42)
+	draw_colored_polygon(pent, Color(0.1, 0.1, 0.1))
+	for i in range(5):
+		var a: float = TAU * float(i) / 5.0 - PI * 0.5 + PI / 5.0
+		draw_circle(Vector2.from_angle(a) * r * 0.85, r * 0.2, Color(0.15, 0.15, 0.15))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_arc(off, r, 0.0, TAU, 16, Color(0.1, 0.1, 0.1), 1.5)
